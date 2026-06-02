@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TruthCheck — pay-per-query AI fact-checker</title>
+<style>
+  :root { --bg:#0b1020; --card:#141a30; --line:#26304d; --ink:#e8edff; --muted:#9aa6c7;
+          --grad: linear-gradient(135deg,#635bff,#00d4ff); }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         background:radial-gradient(900px 500px at 50% -10%,#1b2547,transparent),var(--bg);
+         color:var(--ink); min-height:100vh; }
+  .wrap { max-width:760px; margin:0 auto; padding:40px 20px 80px; }
+  .logo { display:inline-flex; align-items:center; gap:10px; font-weight:800; font-size:20px; }
+  .badge-dot { width:30px;height:30px;border-radius:9px;background:var(--grad);display:grid;place-items:center; }
+  h1 { font-size:2.4rem; letter-spacing:-.02em; margin:24px 0 6px; }
+  h1 .g { background:var(--grad); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .lead { color:var(--muted); font-size:1.05rem; margin:0 0 24px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px; }
+  textarea { width:100%; min-height:110px; resize:vertical; background:#0e1428; color:var(--ink);
+             border:1px solid var(--line); border-radius:12px; padding:12px 14px; font:inherit; outline:none; }
+  textarea:focus { border-color:#5b6ee1; }
+  .row { display:flex; gap:12px; align-items:center; margin-top:14px; flex-wrap:wrap; }
+  button { border:none; cursor:pointer; font:inherit; font-weight:700; border-radius:999px;
+           padding:12px 22px; color:#fff; background:var(--grad); box-shadow:0 8px 24px -8px rgba(99,91,255,.6); }
+  button:disabled { opacity:.55; cursor:default; }
+  .price { color:var(--muted); font-size:.9rem; }
+  .pill { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+          padding:3px 9px; border-radius:7px; background:rgba(99,91,255,.18); color:#b9c2ff; }
+  .result { margin-top:22px; display:none; }
+  .verdict { display:flex; align-items:center; gap:14px; }
+  .rating { font-size:1.5rem; font-weight:800; padding:8px 16px; border-radius:12px; }
+  .r-TRUE,.r-MOSTLY_TRUE { background:rgba(16,185,129,.18); color:#34d399; }
+  .r-MIXED,.r-MISLEADING { background:rgba(245,158,11,.18); color:#fbbf24; }
+  .r-FALSE { background:rgba(239,68,68,.18); color:#f87171; }
+  .r-UNVERIFIABLE { background:rgba(148,163,184,.18); color:#cbd5e1; }
+  .conf { color:var(--muted); font-size:.9rem; }
+  .summary { margin:16px 0; line-height:1.6; }
+  .sources { list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+  .src { background:#0e1428; border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .src a { color:#8fb6ff; text-decoration:none; font-weight:600; }
+  .src .snip { color:var(--muted); font-size:.85rem; margin-top:3px; }
+  .meta { margin-top:16px; font-size:.8rem; color:var(--muted); }
+  .meta code { background:#0e1428; padding:2px 6px; border-radius:5px; }
+  .err { color:#f87171; margin-top:14px; }
+  .spin { display:inline-block; width:16px;height:16px;border:2px solid #fff5;border-top-color:#fff;
+          border-radius:50%; animation:s .7s linear infinite; vertical-align:-3px; margin-right:8px; }
+  @keyframes s { to { transform:rotate(360deg); } }
+  .foot { color:var(--muted); font-size:.8rem; margin-top:30px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo"><span class="badge-dot">✓</span> TruthCheck</div>
+  <h1>Highlight a claim. <span class="g">Get the truth.</span></h1>
+  <p class="lead">Paste any claim, tweet, or headline. Pay <strong>$0.01</strong> per check via the
+    x402 protocol — no subscription. The agent verifies it against real-time web sources and
+    rates it with AI.</p>
+
+  <div class="card">
+    <textarea id="claim" placeholder="e.g. The Great Wall of China is visible from space with the naked eye."></textarea>
+    <div class="row">
+      <button id="go">Fact-Check <span class="pill">$0.01</span></button>
+      <span class="price" id="payinfo">Pays via x402 · Base Sepolia testnet</span>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="result card" id="result">
+    <div class="verdict">
+      <span class="rating" id="rating"></span>
+      <span class="conf" id="conf"></span>
+    </div>
+    <p class="summary" id="summary"></p>
+    <ul class="sources" id="sources"></ul>
+    <div class="meta" id="meta"></div>
+  </div>
+
+  <p class="foot">x402 pay-per-query demo · backend on AWS (Lambda + DynamoDB) · Tavily + Claude</p>
+</div>
+
+<script src="/config.js"></script>
+<script>
+const API = (window.TRUTHCHECK_CONFIG && window.TRUTHCHECK_CONFIG.apiUrl || '').replace(/\/$/, '');
+
+const $ = (id) => document.getElementById(id);
+const go = $('go'), errEl = $('err'), resEl = $('result');
+
+async function payAndFetch(claim) {
+  // 1. Hit the endpoint with no payment → expect a 402 challenge.
+  const first = await fetch(`${API}/factcheck`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ claim }),
+  });
+
+  if (first.status !== 402) {
+    // Some configs may not gate; just return whatever came back.
+    return first.json();
+  }
+
+  const challenge = await first.json();
+  // 2. Build the payment header.
+  //    Real mode: an x402 wallet signs the requirements (x402-fetch). For this
+  //    testnet/stub demo we present a sentinel the backend accepts off-chain.
+  //    (When a dev wallet is provisioned, this is replaced by a signed payload.)
+  const xPayment = (window.TRUTHCHECK_CONFIG && window.TRUTHCHECK_CONFIG.devPayment)
+    || 'stub-demo-payment';
+
+  // 3. Retry with payment.
+  const paid = await fetch(`${API}/factcheck`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-PAYMENT': xPayment },
+    body: JSON.stringify({ claim }),
+  });
+  if (!paid.ok) {
+    const e = await paid.json().catch(() => ({}));
+    throw new Error(e.error || `Request failed (${paid.status})`);
+  }
+  return paid.json();
+}
+
+function render(d) {
+  $('rating').className = 'rating r-' + (d.truthRating || 'UNVERIFIABLE');
+  $('rating').textContent = (d.truthRating || 'UNVERIFIABLE').replace('_', ' ');
+  $('conf').textContent = d.confidence != null
+    ? `${Math.round(d.confidence * 100)}% confidence` : '';
+  $('summary').textContent = d.summary || '';
+  const ul = $('sources'); ul.innerHTML = '';
+  (d.sources || []).forEach((s) => {
+    const li = document.createElement('li'); li.className = 'src';
+    li.innerHTML = `<a href="${s.url}" target="_blank" rel="noopener">${s.title || s.url}</a>` +
+      (s.snippet ? `<div class="snip">${s.snippet}</div>` : '');
+    ul.appendChild(li);
+  });
+  const bits = [];
+  if (d.paid) bits.push('✅ paid');
+  if (d.network) bits.push(`network <code>${d.network}</code>`);
+  if (d.txHash) bits.push(`tx <code>${d.txHash.slice(0, 14)}…</code>`);
+  if (d.queryId) bits.push(`id <code>${d.queryId.slice(0, 8)}</code>`);
+  $('meta').innerHTML = bits.join(' · ');
+  resEl.style.display = 'block';
+}
+
+go.addEventListener('click', async () => {
+  const claim = $('claim').value.trim();
+  errEl.textContent = '';
+  if (!claim) { errEl.textContent = 'Enter a claim first.'; return; }
+  if (!API) { errEl.textContent = 'API URL not configured (config.js).'; return; }
+  go.disabled = true;
+  const original = go.innerHTML;
+  go.innerHTML = '<span class="spin"></span>Checking…';
+  resEl.style.display = 'none';
+  try {
+    render(await payAndFetch(claim));
+  } catch (e) {
+    errEl.textContent = e.message;
+  } finally {
+    go.disabled = false; go.innerHTML = original;
+  }
+});
+</script>
+</body>
+</html>

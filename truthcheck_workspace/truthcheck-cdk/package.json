@@ -1,0 +1,25 @@
+{
+  "name": "truthcheck-cdk",
+  "version": "0.1.0",
+  "bin": {
+    "truthcheck-cdk": "bin/truthcheck-cdk.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk",
+    "deploy": "cdk deploy --all",
+    "synth": "cdk synth"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "aws-cdk": "2.1114.1",
+    "esbuild": "^0.27.4",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.9.3"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.244.0",
+    "constructs": "^10.5.0"
+  }
+}

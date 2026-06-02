@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "TruthCheck — AI Fact-Checker",
+  "version": "0.1.0",
+  "description": "Highlight any claim and get an instant, pay-per-query AI fact-check backed by real-time web sources.",
+  "permissions": ["contextMenus", "activeTab", "scripting", "storage"],
+  "host_permissions": ["https://*/*", "http://*/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "TruthCheck settings" },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  "icons": { "128": "icon128.png" }
+}

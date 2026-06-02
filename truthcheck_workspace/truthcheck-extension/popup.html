@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  body { width: 300px; margin: 0; font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #0a2540; }
+  .head { padding: 14px; font-weight: 800; color: #fff; background: linear-gradient(135deg,#635bff,#00d4ff); }
+  .body { padding: 14px; }
+  label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin: 10px 0 4px; }
+  input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #d6dae6; border-radius: 8px; font: inherit; }
+  button { margin-top: 14px; width: 100%; border: none; border-radius: 8px; padding: 10px; font-weight: 700; color: #fff;
+           background: linear-gradient(135deg,#635bff,#00d4ff); cursor: pointer; }
+  .hint { font-size: 12px; color: #8a94a6; margin-top: 10px; line-height: 1.4; }
+  .ok { color: #16a34a; font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div class="head">✓ TruthCheck</div>
+  <div class="body">
+    <label>Backend API URL</label>
+    <input id="apiUrl" placeholder="https://….execute-api.../prod" />
+    <button id="save">Save</button>
+    <div class="ok" id="ok"></div>
+    <p class="hint">Highlight text on any page, then click the floating
+      “Fact-Check” button or use the right-click menu. $0.01 per check via x402
+      (Base Sepolia testnet).</p>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
